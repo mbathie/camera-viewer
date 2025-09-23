@@ -125,6 +125,7 @@ export default function CamViewer({ params, actions, ui }) {
   // Single-step navigation within current batch
   const stepToOlderImage = async () => {
     const idx = getCurrentIndex()
+    console.log('[CamViewer] step older clicked', { idx, len: images.length, hasOlder, loadingMore })
     if (idx >= 0 && idx < images.length - 1) {
       setSelectedImage(images[idx + 1])
       return
@@ -134,6 +135,7 @@ export default function CamViewer({ params, actions, ui }) {
 
   const stepToNewerImage = async () => {
     const idx = getCurrentIndex()
+    console.log('[CamViewer] step newer clicked', { idx, len: images.length, hasNewer, loadingMore })
     if (idx > 0) {
       setSelectedImage(images[idx - 1])
       return
@@ -193,12 +195,12 @@ export default function CamViewer({ params, actions, ui }) {
               <div className="relative w-full h-full flex items-center justify-center">
                 <img src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'} alt={selectedImage.filename || 'Camera image'} className="max-w-full max-h-full object-contain" />
                 {/* Single-step navigation controls */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-between px-3">
+                <div className="absolute inset-x-0 bottom-3 z-10 flex justify-between px-3">
                   <Button
                     type="button"
                     variant="secondary"
                     size="icon"
-                    className="pointer-events-auto h-9 w-9 opacity-80 hover:opacity-100"
+                    className="h-9 w-9 opacity-80 hover:opacity-100"
                     onClick={stepToOlderImage}
                     disabled={loadingMore}
                     aria-label="Previous image"
@@ -209,7 +211,7 @@ export default function CamViewer({ params, actions, ui }) {
                     type="button"
                     variant="secondary"
                     size="icon"
-                    className="pointer-events-auto h-9 w-9 opacity-80 hover:opacity-100"
+                    className="h-9 w-9 opacity-80 hover:opacity-100"
                     onClick={stepToNewerImage}
                     disabled={loadingMore}
                     aria-label="Next image"
