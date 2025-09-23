@@ -109,31 +109,36 @@ export default function CamViewer({ params, actions, ui }) {
     setMobileDatePickerOpen(false)
   }
 
+  // Resolve index of current selection robustly
+  const getCurrentIndex = () => {
+    if (!selectedImage) return -1
+    let idx = images.findIndex((i) => i?.id === selectedImage?.id)
+    if (idx === -1 && selectedImage?.created) {
+      idx = images.findIndex((i) => String(i?.created) === String(selectedImage?.created))
+    }
+    if (idx === -1 && selectedImage?.url) {
+      idx = images.findIndex((i) => i?.url === selectedImage?.url)
+    }
+    return idx
+  }
+
   // Single-step navigation within current batch
   const stepToOlderImage = async () => {
-    if (!selectedImage) return
-    const idx = images.findIndex((i) => i.id === selectedImage.id)
+    const idx = getCurrentIndex()
     if (idx >= 0 && idx < images.length - 1) {
       setSelectedImage(images[idx + 1])
       return
     }
-    // At end of list, attempt to fetch older page
-    if (hasOlder && !loadingMore) {
-      await loadOlderImages()
-    }
+    if (hasOlder && !loadingMore) await loadOlderImages()
   }
 
   const stepToNewerImage = async () => {
-    if (!selectedImage) return
-    const idx = images.findIndex((i) => i.id === selectedImage.id)
+    const idx = getCurrentIndex()
     if (idx > 0) {
       setSelectedImage(images[idx - 1])
       return
     }
-    // At start of list, attempt to fetch newer page
-    if (hasNewer && !loadingMore) {
-      await loadNewerImages()
-    }
+    if (hasNewer && !loadingMore) await loadNewerImages()
   }
 
   const isDateDisabled = (date) => {
@@ -188,14 +193,14 @@ export default function CamViewer({ params, actions, ui }) {
               <div className="relative w-full h-full flex items-center justify-center">
                 <img src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'} alt={selectedImage.filename || 'Camera image'} className="max-w-full max-h-full object-contain" />
                 {/* Single-step navigation controls */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-between px-3">
+                <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-between px-3">
                   <Button
                     type="button"
                     variant="secondary"
                     size="icon"
                     className="pointer-events-auto h-9 w-9 opacity-80 hover:opacity-100"
                     onClick={stepToOlderImage}
-                    disabled={loadingMore || (!hasOlder && images.findIndex(i=>i.id===selectedImage.id) === images.length-1)}
+                    disabled={loadingMore}
                     aria-label="Previous image"
                   >
                     {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
@@ -206,7 +211,7 @@ export default function CamViewer({ params, actions, ui }) {
                     size="icon"
                     className="pointer-events-auto h-9 w-9 opacity-80 hover:opacity-100"
                     onClick={stepToNewerImage}
-                    disabled={loadingMore || (!hasNewer && images.findIndex(i=>i.id===selectedImage.id) === 0)}
+                    disabled={loadingMore}
                     aria-label="Next image"
                   >
                     {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
