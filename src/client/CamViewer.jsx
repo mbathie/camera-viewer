@@ -125,7 +125,6 @@ export default function CamViewer({ params, actions, ui }) {
   // Single-step navigation within current batch
   const stepToOlderImage = async () => {
     const idx = getCurrentIndex()
-    console.log('[CamViewer] step older clicked', { idx, len: images.length, hasOlder, loadingMore })
     if (idx >= 0 && idx < images.length - 1) {
       setSelectedImage(images[idx + 1])
       return
@@ -135,7 +134,6 @@ export default function CamViewer({ params, actions, ui }) {
 
   const stepToNewerImage = async () => {
     const idx = getCurrentIndex()
-    console.log('[CamViewer] step newer clicked', { idx, len: images.length, hasNewer, loadingMore })
     if (idx > 0) {
       setSelectedImage(images[idx - 1])
       return
@@ -192,31 +190,33 @@ export default function CamViewer({ params, actions, ui }) {
           <div className='w-full flex-1 bg-white flex items-center justify-center relative overflow-hidden'>
             {loading && <div className="text-white">Loading images...</div>}
             {!loading && selectedImage && (
-              <div className="relative w-full h-full flex items-center justify-center">
-                <img src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'} alt={selectedImage.filename || 'Camera image'} className="max-w-full max-h-full object-contain" />
-                {/* Single-step navigation controls at corners */}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon"
-                  className="absolute left-3 bottom-3 z-10 h-9 w-9 opacity-80 hover:opacity-100"
-                  onClick={stepToOlderImage}
-                  disabled={loadingMore}
-                  aria-label="Previous image"
-                >
-                  {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon"
-                  className="absolute right-3 bottom-3 z-10 h-9 w-9 opacity-80 hover:opacity-100"
-                  onClick={stepToNewerImage}
-                  disabled={loadingMore}
-                  aria-label="Next image"
-                >
-                  {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
-                </Button>
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="relative inline-block">
+                  <img src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'} alt={selectedImage.filename || 'Camera image'} className="block max-w-full max-h-full object-contain" />
+                  {/* Single-step navigation controls at image corners */}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="absolute left-2 bottom-2 z-10 h-9 w-9 opacity-80 hover:opacity-100"
+                    onClick={stepToOlderImage}
+                    disabled={loadingMore}
+                    aria-label="Previous image"
+                  >
+                    {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="absolute right-2 bottom-2 z-10 h-9 w-9 opacity-80 hover:opacity-100"
+                    onClick={stepToNewerImage}
+                    disabled={loadingMore}
+                    aria-label="Next image"
+                  >
+                    {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
+                  </Button>
+                </div>
               </div>
             )}
             {!loading && !selectedImage && (<div className="text-gray-400 flex flex-col items-center gap-4"><p>No images available</p></div>)}
