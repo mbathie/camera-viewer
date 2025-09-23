@@ -1,5 +1,5 @@
 "use client"
-import { use, useEffect, useMemo, useState } from 'react'
+import { use, useEffect, useMemo, useRef, useState } from 'react'
 
 // CamViewer is UI-agnostic: pass your UI components via the ui prop.
 // Required ui props: Button, Calendar, Popover, PopoverTrigger, PopoverContent, Input, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger
@@ -44,6 +44,34 @@ export default function CamViewer({ params, actions, ui }) {
     loadImages()
     loadAvailableDates()
   }, [])
+
+  // Track image bounds to anchor overlay buttons to image corners
+  const containerRef = useRef(null)
+  const imgRef = useRef(null)
+  const [overlay, setOverlay] = useState({ left: 12, right: 12, bottom: 12 })
+  const updateOverlay = () => {
+    const c = containerRef.current
+    const img = imgRef.current
+    if (!c || !img) return
+    const cr = c.getBoundingClientRect()
+    const ir = img.getBoundingClientRect()
+    setOverlay({
+      left: Math.max(8, ir.left - cr.left + 8),
+      right: Math.max(8, cr.right - ir.right + 8),
+      bottom: Math.max(8, cr.bottom - ir.bottom + 8),
+    })
+  }
+  useEffect(() => {
+    updateOverlay()
+    const onResize = () => updateOverlay()
+    window.addEventListener('resize', onResize)
+    const img = imgRef.current
+    if (img) img.addEventListener('load', updateOverlay)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      if (img) img.removeEventListener('load', updateOverlay)
+    }
+  }, [selectedImage])
 
   const loadAvailableDates = async () => {
     const result = await actions.getAvailableImageDates()
@@ -187,36 +215,36 @@ export default function CamViewer({ params, actions, ui }) {
     <div className='h-full flex flex-col bg-accent-foreground'>
       <div className='flex-1 flex flex-row relative overflow-hidden'>
         <div className='w-full h-full flex flex-col'>
-          <div className='w-full flex-1 bg-white flex items-center justify-center relative overflow-hidden'>
+          <div ref={containerRef} className='w-full flex-1 bg-white flex items-center justify-center relative overflow-hidden'>
             {loading && <div className="text-white">Loading images...</div>}
             {!loading && selectedImage && (
               <div className="w-full h-full flex items-center justify-center">
-                <div className="relative inline-block">
-                  <img src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'} alt={selectedImage.filename || 'Camera image'} className="block max-w-full max-h-full object-contain" />
-                  {/* Single-step navigation controls at image corners */}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon"
-                    className="absolute left-2 bottom-2 z-10 h-9 w-9 opacity-80 hover:opacity-100"
-                    onClick={stepToOlderImage}
-                    disabled={loadingMore}
-                    aria-label="Previous image"
-                  >
-                    {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon"
-                    className="absolute right-2 bottom-2 z-10 h-9 w-9 opacity-80 hover:opacity-100"
-                    onClick={stepToNewerImage}
-                    disabled={loadingMore}
-                    aria-label="Next image"
-                  >
-                    {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
-                  </Button>
-                </div>
+                <img ref={imgRef} src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'} alt={selectedImage.filename || 'Camera image'} className="block max-w-full max-h-full object-contain" />
+                {/* Single-step navigation controls positioned to image corners */}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute z-10 h-9 w-9 opacity-80 hover:opacity-100"
+                  style={{ left: overlay.left, bottom: overlay.bottom }}
+                  onClick={stepToOlderImage}
+                  disabled={loadingMore}
+                  aria-label="Previous image"
+                >
+                  {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute z-10 h-9 w-9 opacity-80 hover:opacity-100"
+                  style={{ right: overlay.right, bottom: overlay.bottom }}
+                  onClick={stepToNewerImage}
+                  disabled={loadingMore}
+                  aria-label="Next image"
+                >
+                  {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
+                </Button>
               </div>
             )}
             {!loading && !selectedImage && (<div className="text-gray-400 flex flex-col items-center gap-4"><p>No images available</p></div>)}
