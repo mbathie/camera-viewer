@@ -193,11 +193,11 @@ export default function CamViewer({ params, actions, ui }) {
       ) : images.length > 0 ? (
         <div className="grid grid-cols-2 gap-3">
           {images.map((image, index) => (
-            <div key={image.id || index} onClick={() => { setSelectedImage(image); if (onImageSelect) onImageSelect() }} className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all hover:opacity-100 ${selectedImage?.id === image.id ? 'border-blue-500 opacity-100' : 'border-gray-600 opacity-70 hover:border-gray-500'}`}>
-              <div className="aspect-square bg-gray-900 relative">
+            <div key={image.id || index} onClick={() => { setSelectedImage(image); if (onImageSelect) onImageSelect() }} className={`cursor-pointer rounded-lg overflow-hidden border transition-all hover:opacity-100 ${selectedImage?.id === image.id ? 'border-blue-500 opacity-100' : 'border-gray-600 opacity-70 hover:border-gray-500'}`}>
+              <div className="aspect-square bg-gray-900- relative">
                 <img src={image.url || image.image_url || '/placeholder.jpg'} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                  <p className="text-white text-[11px] truncate text-center">
+                  <p className="text-white text-xs truncate text-center">
                     {new Date(image.created || image.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')}
                   </p>
                 </div>
@@ -327,7 +327,7 @@ export default function CamViewer({ params, actions, ui }) {
         </Sheet>
       </div>
 
-      <div className='w-full border-t border-gray-700 bg-accent-foreground px-4 py-3'>
+      <div className='w-full border-t- -border-gray-700 -bg-accent-foreground px-4 py-3'>
         {selectedImage ? (
           <div className="flex flex-wrap gap-4 md:gap-8 text-gray-300 text-sm">
             <div className="flex items-center gap-2"><span className="text-gray-400">Timestamp</span><span>{formatDate(selectedImage.created || selectedImage.created_at)}</span></div>
