@@ -194,31 +194,29 @@ export default function CamViewer({ params, actions, ui }) {
             {!loading && selectedImage && (
               <div className="relative w-full h-full flex items-center justify-center">
                 <img src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'} alt={selectedImage.filename || 'Camera image'} className="max-w-full max-h-full object-contain" />
-                {/* Single-step navigation controls */}
-                <div className="absolute inset-x-0 bottom-3 z-10 flex justify-between px-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon"
-                    className="h-9 w-9 opacity-80 hover:opacity-100"
-                    onClick={stepToOlderImage}
-                    disabled={loadingMore}
-                    aria-label="Previous image"
-                  >
-                    {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon"
-                    className="h-9 w-9 opacity-80 hover:opacity-100"
-                    onClick={stepToNewerImage}
-                    disabled={loadingMore}
-                    aria-label="Next image"
-                  >
-                    {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
-                  </Button>
-                </div>
+                {/* Single-step navigation controls at corners */}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-3 bottom-3 z-10 h-9 w-9 opacity-80 hover:opacity-100"
+                  onClick={stepToOlderImage}
+                  disabled={loadingMore}
+                  aria-label="Previous image"
+                >
+                  {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-3 bottom-3 z-10 h-9 w-9 opacity-80 hover:opacity-100"
+                  onClick={stepToNewerImage}
+                  disabled={loadingMore}
+                  aria-label="Next image"
+                >
+                  {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
+                </Button>
               </div>
             )}
             {!loading && !selectedImage && (<div className="text-gray-400 flex flex-col items-center gap-4"><p>No images available</p></div>)}
