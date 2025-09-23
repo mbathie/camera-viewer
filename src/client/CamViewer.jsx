@@ -109,6 +109,33 @@ export default function CamViewer({ params, actions, ui }) {
     setMobileDatePickerOpen(false)
   }
 
+  // Single-step navigation within current batch
+  const stepToOlderImage = async () => {
+    if (!selectedImage) return
+    const idx = images.findIndex((i) => i.id === selectedImage.id)
+    if (idx >= 0 && idx < images.length - 1) {
+      setSelectedImage(images[idx + 1])
+      return
+    }
+    // At end of list, attempt to fetch older page
+    if (hasOlder && !loadingMore) {
+      await loadOlderImages()
+    }
+  }
+
+  const stepToNewerImage = async () => {
+    if (!selectedImage) return
+    const idx = images.findIndex((i) => i.id === selectedImage.id)
+    if (idx > 0) {
+      setSelectedImage(images[idx - 1])
+      return
+    }
+    // At start of list, attempt to fetch newer page
+    if (hasNewer && !loadingMore) {
+      await loadNewerImages()
+    }
+  }
+
   const isDateDisabled = (date) => {
     const dateStr = new Date(date).toISOString().split('T')[0]
     return !availableDates.includes(dateStr)
@@ -160,6 +187,31 @@ export default function CamViewer({ params, actions, ui }) {
             {!loading && selectedImage && (
               <div className="relative w-full h-full flex items-center justify-center">
                 <img src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'} alt={selectedImage.filename || 'Camera image'} className="max-w-full max-h-full object-contain" />
+                {/* Single-step navigation controls */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-between px-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="pointer-events-auto h-9 w-9 opacity-80 hover:opacity-100"
+                    onClick={stepToOlderImage}
+                    disabled={loadingMore || (!hasOlder && images.findIndex(i=>i.id===selectedImage.id) === images.length-1)}
+                    aria-label="Previous image"
+                  >
+                    {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="pointer-events-auto h-9 w-9 opacity-80 hover:opacity-100"
+                    onClick={stepToNewerImage}
+                    disabled={loadingMore || (!hasNewer && images.findIndex(i=>i.id===selectedImage.id) === 0)}
+                    aria-label="Next image"
+                  >
+                    {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
+                  </Button>
+                </div>
               </div>
             )}
             {!loading && !selectedImage && (<div className="text-gray-400 flex flex-col items-center gap-4"><p>No images available</p></div>)}
