@@ -58,7 +58,7 @@ export default function CamViewer({ params, actions, ui }) {
     setOverlay({
       left: Math.max(8, ir.left - cr.left + 8),
       right: Math.max(8, cr.right - ir.right + 8),
-      bottom: Math.max(8, cr.bottom - ir.bottom + 8),
+      bottom: Math.max(8, cr.bottom - ir.bottom + 24),
     })
   }
   useEffect(() => {
