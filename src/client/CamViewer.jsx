@@ -1,6 +1,5 @@
 "use client"
 import { use, useEffect, useMemo, useState } from 'react'
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Camera } from 'lucide-react'
 
 // CamViewer is UI-agnostic: pass your UI components via the ui prop.
 // Required ui props: Button, Calendar, Popover, PopoverTrigger, PopoverContent, Input, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger
@@ -19,7 +18,14 @@ export default function CamViewer({ params, actions, ui }) {
     SheetTitle,
     SheetDescription,
     SheetTrigger,
+    icons = {}
   } = ui
+  const {
+    ChevronLeft: ChevronLeftIcon,
+    ChevronRight: ChevronRightIcon,
+    CalendarIcon,
+    Camera: CameraIcon,
+  } = icons
 
   const [images, setImages] = useState([])
   const [selectedImage, setSelectedImage] = useState(null)
@@ -165,17 +171,17 @@ export default function CamViewer({ params, actions, ui }) {
             <div className="flex items-center justify-between gap-2">
               <div className="flex gap-1">
                 <Button variant="secondary" size="icon" className="h-8 w-8" onClick={loadOlderImages} disabled={!hasOlder || loadingMore}>
-                  <ChevronLeft className="h-4 w-4" />
+                  {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
                 </Button>
                 <Button variant="secondary" size="icon" className="h-8 w-8" onClick={loadNewerImages} disabled={!hasNewer || loadingMore}>
-                  <ChevronRight className="h-4 w-4" />
+                  {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
                 </Button>
               </div>
               <div className="flex items-center">
                 <Popover open={desktopDatePickerOpen} onOpenChange={setDesktopDatePickerOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-[160px] justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {CalendarIcon ? <CalendarIcon className="mr-2 h-4 w-4" /> : <span className="mr-2">📅</span>}
                       {selectedDate ? new Date(selectedDate).toLocaleDateString() + ' ' + selectedTime : 'Select date'}
                     </Button>
                   </PopoverTrigger>
@@ -196,7 +202,7 @@ export default function CamViewer({ params, actions, ui }) {
         <Sheet open={imagesSidebarOpen} onOpenChange={setImagesSidebarOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden absolute top-1 right-2 z-40">
-              <Camera className="size-6" />
+              {CameraIcon ? <CameraIcon className="size-6" /> : <span>📷</span>}
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-80 p-0 bg-primary border-none" hideClose>
@@ -205,17 +211,17 @@ export default function CamViewer({ params, actions, ui }) {
                 <SheetTitle className="sr-only">Recent Images</SheetTitle>
                 <div className="flex gap-1">
                   <Button size="icon" className="h-8 w-8" onClick={loadOlderImages} disabled={!hasOlder || loadingMore}>
-                    <ChevronLeft className="h-4 w-4" />
+                    {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
                   </Button>
                   <Button size="icon" className="h-8 w-8" onClick={loadNewerImages} disabled={!hasNewer || loadingMore}>
-                    <ChevronRight className="h-4 w-4" />
+                    {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
                   </Button>
                 </div>
                 <div className="flex items-center">
                   <Popover open={mobileDatePickerOpen} onOpenChange={setMobileDatePickerOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-[160px] justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {CalendarIcon ? <CalendarIcon className="mr-2 h-4 w-4" /> : <span className="mr-2">📅</span>}
                         {selectedDate ? new Date(selectedDate).toLocaleDateString() + ' ' + selectedTime : 'Select date'}
                       </Button>
                     </PopoverTrigger>
