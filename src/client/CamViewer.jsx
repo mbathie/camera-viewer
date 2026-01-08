@@ -170,7 +170,8 @@ export default function CamViewer({ params, actions, ui }) {
   }
 
   const isDateDisabled = (date) => {
-    const dateStr = new Date(date).toISOString().split('T')[0]
+    const d = new Date(date)
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     return !availableDates.includes(dateStr)
   }
 

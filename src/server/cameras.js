@@ -23,13 +23,10 @@ export function createCameraActions({ prisma, buildUrl }) {
     `
 
     const dates = await prisma.$queryRaw`
-      SELECT DISTINCT DATE(created) as date FROM ImageCam ORDER BY date DESC
+      SELECT DISTINCT DATE_FORMAT(created, '%Y-%m-%d') as date FROM ImageCam ORDER BY date DESC
     `
 
-    const availableDates = dates.map(d => {
-      const date = new Date(d.date)
-      return date.toISOString().split('T')[0]
-    })
+    const availableDates = dates.map(d => d.date)
 
     return {
       success: true,

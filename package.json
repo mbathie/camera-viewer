@@ -1,6 +1,6 @@
 {
   "name": "@seabin/camera-viewer",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "type": "module",
   "main": "src/index.js",
@@ -11,8 +11,8 @@
     }
   },
   "peerDependencies": {
-    "react": ">=18",
+    "@prisma/client": ">=5",
     "next": ">=15",
-    "@prisma/client": ">=5"
+    "react": ">=18"
   }
 }
