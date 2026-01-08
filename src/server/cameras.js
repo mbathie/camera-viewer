@@ -16,18 +16,27 @@ export function createCameraActions({ prisma, buildUrl }) {
   }
 
   async function getAvailableImageDates() {
-    const images = await prisma.imageCam.findMany({
-      select: { created: true },
-      orderBy: { created: 'desc' }
+    // Use SQL aggregation for efficiency - avoids loading all records into memory
+    // which can cause stack overflow with large datasets (100k+ images)
+    const [minMax] = await prisma.$queryRaw`
+      SELECT MIN(created) as minDate, MAX(created) as maxDate FROM ImageCam
+    `
+
+    const dates = await prisma.$queryRaw`
+      SELECT DISTINCT DATE(created) as date FROM ImageCam ORDER BY date DESC
+    `
+
+    const availableDates = dates.map(d => {
+      const date = new Date(d.date)
+      return date.toISOString().split('T')[0]
     })
-    const uniqueDates = [...new Set(images.map((img) => new Date(img.created).toISOString().split('T')[0]))]
-    let minDate = null, maxDate = null
-    if (images.length) {
-      const dates = images.map((i) => new Date(i.created))
-      minDate = new Date(Math.min(...dates))
-      maxDate = new Date(Math.max(...dates))
+
+    return {
+      success: true,
+      availableDates,
+      minDate: minMax.minDate,
+      maxDate: minMax.maxDate
     }
-    return { success: true, availableDates: uniqueDates, minDate, maxDate }
   }
 
   async function getCameraImagesPaginated(limit = 14, beforeId = null, afterId = null) {
