@@ -55,6 +55,14 @@ export function createCameraActions({ prisma, buildUrl }) {
     return { success: true, data: imagesWithMetadata, hasOlder, hasNewer }
   }
 
+  async function getCameraImageByFilename(filename) {
+    const image = await prisma.imageCam.findFirst({
+      where: { file: filename },
+    })
+    if (!image) return { success: false, error: 'Image not found' }
+    return { success: true, data: augmentImageWithMetadata(image) }
+  }
+
   async function getCameraImagesByDateTime(targetDateTime, limit = 14) {
     const targetDate = new Date(targetDateTime)
     const closestImage = await prisma.imageCam.findFirst({
@@ -101,6 +109,7 @@ export function createCameraActions({ prisma, buildUrl }) {
     getAvailableImageDates,
     getCameraImagesPaginated,
     getCameraImagesByDateTime,
+    getCameraImageByFilename,
   }
 }
 

@@ -1,10 +1,13 @@
 "use client"
 import { use, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 // CamViewer is UI-agnostic: pass your UI components via the ui prop.
 // Required ui props: Button, Calendar, Popover, PopoverTrigger, PopoverContent, Input, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger
 export default function CamViewer({ params, actions, ui }) {
   const { id } = use(params || { id: undefined })
+  const searchParams = useSearchParams()
+  const fileParam = searchParams?.get('file')
   const {
     Button,
     Calendar,
@@ -80,6 +83,18 @@ export default function CamViewer({ params, actions, ui }) {
 
   const loadImages = async () => {
     setLoading(true)
+    // Check for file query param first
+    if (fileParam && actions.getCameraImageByFilename) {
+      const fileResult = await actions.getCameraImageByFilename(fileParam)
+      if (fileResult.success && fileResult.data) {
+        setImages([fileResult.data])
+        setSelectedImage(fileResult.data)
+        setHasOlder(true)
+        setHasNewer(true)
+        setLoading(false)
+        return
+      }
+    }
     const result = await actions.getCameraImagesPaginated(14)
     if (result.success && result.data.length) {
       setImages(result.data)
