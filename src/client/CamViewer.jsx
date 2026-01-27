@@ -21,6 +21,7 @@ export default function CamViewer({ params, actions, ui }) {
     ChevronLeft: ChevronLeftIcon,
     ChevronRight: ChevronRightIcon,
     CalendarIcon,
+    Keyboard: KeyboardIcon,
   } = icons
 
   const [selectedImage, setSelectedImage] = useState(null)
@@ -259,22 +260,56 @@ export default function CamViewer({ params, actions, ui }) {
             </div>
           )}
 
-          {/* Date/time picker */}
-          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
-                {CalendarIcon ? <CalendarIcon className="mr-2 h-4 w-4" /> : <span className="mr-2">📅</span>}
-                {selectedDate ? new Date(selectedDate).toLocaleDateString() + ' ' + selectedTime : 'Jump to date'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={isDateDisabled} initialFocus />
-              <div className="border-t p-3 flex items-center gap-2">
-                <Input type="time" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} className="w-[120px]" />
-                <Button onClick={jumpToDateTime} disabled={!selectedDate || loading} size="sm">Go</Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <div className="flex items-center gap-2">
+            {/* Keyboard shortcuts help */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="Keyboard shortcuts">
+                  {KeyboardIcon ? <KeyboardIcon className="h-4 w-4" /> : <span>⌨</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56" align="end">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Keyboard Shortcuts</h4>
+                  <div className="text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Previous image</span>
+                      <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">←</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Next image</span>
+                      <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">→</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Next day</span>
+                      <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">↑</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Previous day</span>
+                      <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">↓</kbd>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Date/time picker */}
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                  {CalendarIcon ? <CalendarIcon className="mr-2 h-4 w-4" /> : <span className="mr-2">📅</span>}
+                  {selectedDate ? new Date(selectedDate).toLocaleDateString() + ' ' + selectedTime : 'Jump to date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={isDateDisabled} initialFocus />
+                <div className="border-t p-3 flex items-center gap-2">
+                  <Input type="time" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} className="w-[120px]" />
+                  <Button onClick={jumpToDateTime} disabled={!selectedDate || loading} size="sm">Go</Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
 
