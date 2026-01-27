@@ -1,5 +1,5 @@
 "use client"
-import { use, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 // CamViewer is UI-agnostic: pass your UI components via the ui prop.
@@ -93,7 +93,7 @@ export default function CamViewer({ params, actions, ui }) {
     setDatePickerOpen(false)
   }
 
-  const skipToPreviousDay = async () => {
+  const skipToPreviousDay = useCallback(async () => {
     if (!selectedImage || loadingMore) return
     setLoadingMore(true)
     const currentDate = new Date(selectedImage.created || selectedImage.created_at)
@@ -105,9 +105,9 @@ export default function CamViewer({ params, actions, ui }) {
       setHasNewer(result.hasNewer)
     }
     setLoadingMore(false)
-  }
+  }, [selectedImage, loadingMore, actions])
 
-  const skipToNextDay = async () => {
+  const skipToNextDay = useCallback(async () => {
     if (!selectedImage || loadingMore) return
     setLoadingMore(true)
     const currentDate = new Date(selectedImage.created || selectedImage.created_at)
@@ -119,9 +119,9 @@ export default function CamViewer({ params, actions, ui }) {
       setHasNewer(result.hasNewer)
     }
     setLoadingMore(false)
-  }
+  }, [selectedImage, loadingMore, actions])
 
-  const stepToOlderImage = async () => {
+  const stepToOlderImage = useCallback(async () => {
     if (!selectedImage || loadingMore || !hasOlder) return
     setLoadingMore(true)
     const timestamp = selectedImage.created || selectedImage.created_at
@@ -132,9 +132,9 @@ export default function CamViewer({ params, actions, ui }) {
       setHasNewer(result.hasNewer)
     }
     setLoadingMore(false)
-  }
+  }, [selectedImage, loadingMore, hasOlder, actions])
 
-  const stepToNewerImage = async () => {
+  const stepToNewerImage = useCallback(async () => {
     if (!selectedImage || loadingMore || !hasNewer) return
     setLoadingMore(true)
     const timestamp = selectedImage.created || selectedImage.created_at
@@ -145,7 +145,37 @@ export default function CamViewer({ params, actions, ui }) {
       setHasNewer(result.hasNewer)
     }
     setLoadingMore(false)
-  }
+  }, [selectedImage, loadingMore, hasNewer, actions])
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't handle if user is typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault()
+          stepToOlderImage()
+          break
+        case 'ArrowRight':
+          e.preventDefault()
+          stepToNewerImage()
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          skipToNextDay()
+          break
+        case 'ArrowDown':
+          e.preventDefault()
+          skipToPreviousDay()
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [stepToOlderImage, stepToNewerImage, skipToNextDay, skipToPreviousDay])
 
   const isDateDisabled = (date) => {
     const d = new Date(date)
@@ -183,7 +213,7 @@ export default function CamViewer({ params, actions, ui }) {
               size="sm"
               onClick={skipToPreviousDay}
               disabled={!selectedImage || loadingMore}
-              title="Previous day"
+              title="Previous day (↓)"
               className="text-xs"
             >
               {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4 mr-1" /> : <span className="mr-1">◀</span>}
@@ -195,7 +225,7 @@ export default function CamViewer({ params, actions, ui }) {
               className="h-8 w-8"
               onClick={stepToOlderImage}
               disabled={!hasOlder || loadingMore}
-              title="Previous image"
+              title="Previous image (←)"
             >
               {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
             </Button>
@@ -205,7 +235,7 @@ export default function CamViewer({ params, actions, ui }) {
               className="h-8 w-8"
               onClick={stepToNewerImage}
               disabled={!hasNewer || loadingMore}
-              title="Next image"
+              title="Next image (→)"
             >
               {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
             </Button>
@@ -214,7 +244,7 @@ export default function CamViewer({ params, actions, ui }) {
               size="sm"
               onClick={skipToNextDay}
               disabled={!selectedImage || loadingMore}
-              title="Next day"
+              title="Next day (↑)"
               className="text-xs"
             >
               +1 Day
@@ -249,36 +279,48 @@ export default function CamViewer({ params, actions, ui }) {
       </div>
 
       {/* Main image area */}
-      <div className='flex-1 flex items-center justify-center relative overflow-hidden bg-black'>
+      <div className='flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-black'>
         {loading && <div className="text-white">Loading...</div>}
         {!loading && selectedImage && (
           <img
             src={selectedImage.url || selectedImage.image_url || '/placeholder.jpg'}
             alt={selectedImage.filename || 'Camera image'}
-            className="block max-w-full max-h-full object-contain"
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
           />
         )}
         {!loading && !selectedImage && (
-          <div className="text-gray-400 flex flex-col items-center gap-4">
+          <div className="text-gray-400">
             <p>No images available</p>
           </div>
         )}
       </div>
 
       {/* Footer with navigation and image info */}
-      <div className='w-full border-t border-gray-700 bg-primary px-4 py-3'>
+      <div className='shrink-0 w-full border-t border-gray-700 bg-primary px-4 py-2'>
         <div className="flex items-center gap-4">
-          {/* Previous image button */}
-          <Button
-            variant="secondary"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            onClick={stepToOlderImage}
-            disabled={!hasOlder || loadingMore}
-            title="Previous image"
-          >
-            {ChevronLeftIcon ? <ChevronLeftIcon className="h-5 w-5" /> : <span>◀</span>}
-          </Button>
+          {/* Navigation arrows together on the left - same size as header */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-8 w-8"
+              onClick={stepToOlderImage}
+              disabled={!hasOlder || loadingMore}
+              title="Previous image (←)"
+            >
+              {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-8 w-8"
+              onClick={stepToNewerImage}
+              disabled={!hasNewer || loadingMore}
+              title="Next image (→)"
+            >
+              {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
+            </Button>
+          </div>
 
           {/* Image info */}
           <div className="flex-1 min-w-0">
@@ -303,18 +345,6 @@ export default function CamViewer({ params, actions, ui }) {
               <div className="text-gray-500 text-sm">No image selected</div>
             )}
           </div>
-
-          {/* Next image button */}
-          <Button
-            variant="secondary"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            onClick={stepToNewerImage}
-            disabled={!hasNewer || loadingMore}
-            title="Next image"
-          >
-            {ChevronRightIcon ? <ChevronRightIcon className="h-5 w-5" /> : <span>▶</span>}
-          </Button>
         </div>
       </div>
     </div>
