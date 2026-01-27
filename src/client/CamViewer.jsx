@@ -46,7 +46,7 @@ export default function CamViewer({ params, actions, ui }) {
   useEffect(() => {
     loadImages()
     loadAvailableDates()
-  }, [])
+  }, [fileParam])
 
   // Track image bounds to anchor overlay buttons to image corners
   const containerRef = useRef(null)
@@ -83,10 +83,14 @@ export default function CamViewer({ params, actions, ui }) {
 
   const loadImages = async () => {
     setLoading(true)
+    console.log('[CamViewer] loadImages called, fileParam:', fileParam)
     // Check for file query param first
     if (fileParam && actions.getCameraImageByFilename) {
+      console.log('[CamViewer] Looking up file:', fileParam)
       const fileResult = await actions.getCameraImageByFilename(fileParam)
+      console.log('[CamViewer] File lookup result:', fileResult)
       if (fileResult.success && fileResult.data) {
+        console.log('[CamViewer] Found file, setting as selected')
         setImages([fileResult.data])
         setSelectedImage(fileResult.data)
         setHasOlder(true)
@@ -95,6 +99,7 @@ export default function CamViewer({ params, actions, ui }) {
         return
       }
     }
+    console.log('[CamViewer] Loading paginated images')
     const result = await actions.getCameraImagesPaginated(14)
     if (result.success && result.data.length) {
       setImages(result.data)
