@@ -8,6 +8,7 @@ export default function CamViewer({ params, actions, ui }) {
   const { id } = use(params || { id: undefined })
   const searchParams = useSearchParams()
   const fileParam = searchParams?.get('file')
+  const debugMode = searchParams?.get('debug') === 'true'
   const {
     Button,
     Calendar,
@@ -18,10 +19,10 @@ export default function CamViewer({ params, actions, ui }) {
     icons = {}
   } = ui
   const {
-    ChevronLeft: ChevronLeftIcon,
-    ChevronRight: ChevronRightIcon,
     CalendarIcon,
-    Keyboard: KeyboardIcon,
+    ChevronLeft,
+    ChevronRight,
+    Keyboard,
   } = icons
 
   const [selectedImage, setSelectedImage] = useState(null)
@@ -92,6 +93,17 @@ export default function CamViewer({ params, actions, ui }) {
     }
     setLoading(false)
     setDatePickerOpen(false)
+  }
+
+  const jumpToCurrent = async () => {
+    setLoading(true)
+    const result = await actions.getImageByTimestamp(null, 'latest')
+    if (result.success && result.data) {
+      setSelectedImage(result.data)
+      setHasOlder(result.hasOlder)
+      setHasNewer(result.hasNewer)
+    }
+    setLoading(false)
   }
 
   const skipToPreviousDay = useCallback(async () => {
@@ -197,122 +209,8 @@ export default function CamViewer({ params, actions, ui }) {
     return new Date(dateString).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
   }
 
-  const formatShortDate = (dateString) => {
-    if (!dateString) return ''
-    return new Date(dateString).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')
-  }
-
   return (
     <div className='h-full flex flex-col bg-accent-foreground'>
-      {/* Top control bar */}
-      <div className='w-full border-b border-gray-700 bg-primary px-4 py-2'>
-        <div className="flex items-center justify-between gap-4">
-          {/* Day skip and step navigation */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={skipToPreviousDay}
-              disabled={!selectedImage || loadingMore}
-              title="Previous day (↓)"
-              className="text-xs"
-            >
-              {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4 mr-1" /> : <span className="mr-1">◀</span>}
-              -1 Day
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-8 w-8"
-              onClick={stepToOlderImage}
-              disabled={!hasOlder || loadingMore}
-              title="Previous image (←)"
-            >
-              {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-8 w-8"
-              onClick={stepToNewerImage}
-              disabled={!hasNewer || loadingMore}
-              title="Next image (→)"
-            >
-              {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={skipToNextDay}
-              disabled={!selectedImage || loadingMore}
-              title="Next day (↑)"
-              className="text-xs"
-            >
-              +1 Day
-              {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4 ml-1" /> : <span className="ml-1">▶</span>}
-            </Button>
-          </div>
-
-          {/* Current image timestamp display */}
-          {selectedImage && (
-            <div className="hidden sm:block text-gray-300 text-sm font-mono">
-              {formatShortDate(selectedImage.created || selectedImage.created_at)}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            {/* Keyboard shortcuts help */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Keyboard shortcuts">
-                  {KeyboardIcon ? <KeyboardIcon className="h-4 w-4" /> : <span>⌨</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56" align="end">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Keyboard Shortcuts</h4>
-                  <div className="text-sm space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Previous image</span>
-                      <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">←</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Next image</span>
-                      <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">→</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Next day</span>
-                      <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">↑</kbd>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Previous day</span>
-                      <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">↓</kbd>
-                    </div>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* Date/time picker */}
-            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
-                  {CalendarIcon ? <CalendarIcon className="mr-2 h-4 w-4" /> : <span className="mr-2">📅</span>}
-                  {selectedDate ? new Date(selectedDate).toLocaleDateString() + ' ' + selectedTime : 'Jump to date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={isDateDisabled} initialFocus />
-                <div className="border-t p-3 flex items-center gap-2">
-                  <Input type="time" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} className="w-[120px]" />
-                  <Button onClick={jumpToDateTime} disabled={!selectedDate || loading} size="sm">Go</Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-      </div>
-
       {/* Main image area */}
       <div className='flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-black'>
         {loading && <div className="text-white">Loading...</div>}
@@ -330,58 +228,124 @@ export default function CamViewer({ params, actions, ui }) {
         )}
       </div>
 
-      {/* Footer with navigation and image info */}
-      <div className='shrink-0 w-full border-t border-gray-700 bg-primary px-4 py-2'>
-        <div className="flex items-center gap-4">
-          {/* Navigation arrows together on the left - same size as header */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-8 w-8"
-              onClick={stepToOlderImage}
-              disabled={!hasOlder || loadingMore}
-              title="Previous image (←)"
-            >
-              {ChevronLeftIcon ? <ChevronLeftIcon className="h-4 w-4" /> : <span>◀</span>}
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-8 w-8"
-              onClick={stepToNewerImage}
-              disabled={!hasNewer || loadingMore}
-              title="Next image (→)"
-            >
-              {ChevronRightIcon ? <ChevronRightIcon className="h-4 w-4" /> : <span>▶</span>}
-            </Button>
-          </div>
-
-          {/* Image info */}
-          <div className="flex-1 min-w-0">
-            {selectedImage ? (
-              <div className="flex flex-wrap gap-4 md:gap-8 text-gray-300 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400">Timestamp</span>
-                  <span>{formatDate(selectedImage.created || selectedImage.created_at)}</span>
-                </div>
-                {selectedImage.width && selectedImage.height && (
-                  <div className="hidden sm:flex items-center gap-2">
-                    <span className="text-gray-400">Resolution</span>
-                    <span>{selectedImage.width}×{selectedImage.height}</span>
+      {/* Bottom control bar with all buttons */}
+      <div className='shrink-0 w-full border-t border-gray-300 bg-white px-4 py-3'>
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={skipToPreviousDay}
+            disabled={!selectedImage || loadingMore}
+            title="Previous day (↓)"
+          >
+            {ChevronLeft ? <ChevronLeft className="h-4 w-4" /> : '<'} Day
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={stepToOlderImage}
+            disabled={!hasOlder || loadingMore}
+            title="Previous image (←)"
+          >
+            {ChevronLeft ? <ChevronLeft className="h-4 w-4" /> : '<'}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={stepToNewerImage}
+            disabled={!hasNewer || loadingMore}
+            title="Next image (→)"
+          >
+            {ChevronRight ? <ChevronRight className="h-4 w-4" /> : '>'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={skipToNextDay}
+            disabled={!selectedImage || loadingMore || !hasNewer}
+            title="Next day (↑)"
+          >
+            Day {ChevronRight ? <ChevronRight className="h-4 w-4" /> : '>'}
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={jumpToCurrent}
+            disabled={loading}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Current
+          </Button>
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8" title="Date picker">
+                {CalendarIcon ? <CalendarIcon className="h-4 w-4" /> : '📅'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center">
+              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={isDateDisabled} initialFocus />
+              <div className="border-t p-3 flex items-center gap-2">
+                <Input type="time" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} className="w-[120px]" />
+                <Button onClick={jumpToDateTime} disabled={!selectedDate || loading} size="sm">Go</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8" title="Keyboard shortcuts">
+                {Keyboard ? <Keyboard className="h-4 w-4" /> : '⌨'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56" align="center">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Keyboard Shortcuts</h4>
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Previous image</span>
+                    <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs">←</kbd>
                   </div>
-                )}
-                <div className="hidden sm:flex items-center gap-2">
-                  <span className="text-gray-400">File Size</span>
-                  <span>{formatFileSize(selectedImage.size || selectedImage.file_size)}</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Next image</span>
+                    <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs">→</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Next day</span>
+                    <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs">↑</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Previous day</span>
+                    <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs">↓</kbd>
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div className="text-gray-500 text-sm">No image selected</div>
-            )}
-          </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
+
+      {/* Debug footer with image info - only shown when ?debug=true */}
+      {debugMode && selectedImage && (
+        <div className='shrink-0 w-full border-t border-gray-300 bg-gray-100 px-4 py-2'>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-gray-600 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">Timestamp</span>
+              <span>{formatDate(selectedImage.created || selectedImage.created_at)}</span>
+            </div>
+            {selectedImage.width && selectedImage.height && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">Resolution</span>
+                <span>{selectedImage.width}x{selectedImage.height}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">File Size</span>
+              <span>{formatFileSize(selectedImage.size || selectedImage.file_size)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
