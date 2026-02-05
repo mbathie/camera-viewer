@@ -41,7 +41,7 @@ export default function CamViewer({ params, actions, ui }) {
   }, [fileParam])
 
   const loadAvailableDates = async () => {
-    const result = await actions.getAvailableImageDates()
+    const result = await actions.getAvailableImageDates(id)
     if (result.success) setAvailableDates(result.availableDates)
   }
 
@@ -49,7 +49,7 @@ export default function CamViewer({ params, actions, ui }) {
     setLoading(true)
     // Check for file query param first
     if (fileParam && actions.getCameraImageByFilename) {
-      const fileResult = await actions.getCameraImageByFilename(fileParam)
+      const fileResult = await actions.getCameraImageByFilename(fileParam, id)
       if (fileResult.success && fileResult.data) {
         setSelectedImage(fileResult.data)
         // Check if there are newer/older images
@@ -59,7 +59,7 @@ export default function CamViewer({ params, actions, ui }) {
       }
     }
     // Load most recent image
-    const result = await actions.getImageByTimestamp(null, 'latest')
+    const result = await actions.getImageByTimestamp(null, 'latest', id)
     if (result.success && result.data) {
       setSelectedImage(result.data)
       setHasOlder(result.hasOlder)
@@ -72,10 +72,10 @@ export default function CamViewer({ params, actions, ui }) {
     if (!image) return
     const timestamp = image.created || image.created_at
     // Check for newer
-    const newerResult = await actions.getImageByTimestamp(timestamp, 'next')
+    const newerResult = await actions.getImageByTimestamp(timestamp, 'next', id)
     setHasNewer(newerResult.success && newerResult.data !== null)
     // Check for older
-    const olderResult = await actions.getImageByTimestamp(timestamp, 'prev')
+    const olderResult = await actions.getImageByTimestamp(timestamp, 'prev', id)
     setHasOlder(olderResult.success && olderResult.data !== null)
   }
 
@@ -85,7 +85,7 @@ export default function CamViewer({ params, actions, ui }) {
     const [h, m] = (selectedTime || '00:00').split(':')
     const dt = new Date(selectedDate)
     dt.setHours(parseInt(h || '0'), parseInt(m || '0'), 0, 0)
-    const result = await actions.getImageByTimestamp(dt.toISOString(), 'closest')
+    const result = await actions.getImageByTimestamp(dt.toISOString(), 'closest', id)
     if (result.success && result.data) {
       setSelectedImage(result.data)
       setHasOlder(result.hasOlder)
@@ -97,7 +97,7 @@ export default function CamViewer({ params, actions, ui }) {
 
   const jumpToCurrent = async () => {
     setLoading(true)
-    const result = await actions.getImageByTimestamp(null, 'latest')
+    const result = await actions.getImageByTimestamp(null, 'latest', id)
     if (result.success && result.data) {
       setSelectedImage(result.data)
       setHasOlder(result.hasOlder)
@@ -111,54 +111,54 @@ export default function CamViewer({ params, actions, ui }) {
     setLoadingMore(true)
     const currentDate = new Date(selectedImage.created || selectedImage.created_at)
     currentDate.setDate(currentDate.getDate() - 1)
-    const result = await actions.getImageByTimestamp(currentDate.toISOString(), 'closest')
+    const result = await actions.getImageByTimestamp(currentDate.toISOString(), 'closest', id)
     if (result.success && result.data) {
       setSelectedImage(result.data)
       setHasOlder(result.hasOlder)
       setHasNewer(result.hasNewer)
     }
     setLoadingMore(false)
-  }, [selectedImage, loadingMore, actions])
+  }, [selectedImage, loadingMore, actions, id])
 
   const skipToNextDay = useCallback(async () => {
     if (!selectedImage || loadingMore) return
     setLoadingMore(true)
     const currentDate = new Date(selectedImage.created || selectedImage.created_at)
     currentDate.setDate(currentDate.getDate() + 1)
-    const result = await actions.getImageByTimestamp(currentDate.toISOString(), 'closest')
+    const result = await actions.getImageByTimestamp(currentDate.toISOString(), 'closest', id)
     if (result.success && result.data) {
       setSelectedImage(result.data)
       setHasOlder(result.hasOlder)
       setHasNewer(result.hasNewer)
     }
     setLoadingMore(false)
-  }, [selectedImage, loadingMore, actions])
+  }, [selectedImage, loadingMore, actions, id])
 
   const stepToOlderImage = useCallback(async () => {
     if (!selectedImage || loadingMore || !hasOlder) return
     setLoadingMore(true)
     const timestamp = selectedImage.created || selectedImage.created_at
-    const result = await actions.getImageByTimestamp(timestamp, 'prev')
+    const result = await actions.getImageByTimestamp(timestamp, 'prev', id)
     if (result.success && result.data) {
       setSelectedImage(result.data)
       setHasOlder(result.hasOlder)
       setHasNewer(result.hasNewer)
     }
     setLoadingMore(false)
-  }, [selectedImage, loadingMore, hasOlder, actions])
+  }, [selectedImage, loadingMore, hasOlder, actions, id])
 
   const stepToNewerImage = useCallback(async () => {
     if (!selectedImage || loadingMore || !hasNewer) return
     setLoadingMore(true)
     const timestamp = selectedImage.created || selectedImage.created_at
-    const result = await actions.getImageByTimestamp(timestamp, 'next')
+    const result = await actions.getImageByTimestamp(timestamp, 'next', id)
     if (result.success && result.data) {
       setSelectedImage(result.data)
       setHasOlder(result.hasOlder)
       setHasNewer(result.hasNewer)
     }
     setLoadingMore(false)
-  }, [selectedImage, loadingMore, hasNewer, actions])
+  }, [selectedImage, loadingMore, hasNewer, actions, id])
 
   // Keyboard navigation
   useEffect(() => {

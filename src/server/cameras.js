@@ -15,16 +15,18 @@ export function createCameraActions({ prisma, buildUrl }) {
     return { ...image, url, filename, file_size, width, height }
   }
 
-  async function getAvailableImageDates() {
+  async function getAvailableImageDates(binId = null) {
     // Use SQL aggregation for efficiency - avoids loading all records into memory
     // which can cause stack overflow with large datasets (100k+ images)
-    const [minMax] = await prisma.$queryRaw`
-      SELECT MIN(created) as minDate, MAX(created) as maxDate FROM ImageCam
-    `
+    const binIdInt = binId ? parseInt(binId) : null
 
-    const dates = await prisma.$queryRaw`
-      SELECT DISTINCT DATE_FORMAT(created, '%Y-%m-%d') as date FROM ImageCam ORDER BY date DESC
-    `
+    const [minMax] = binIdInt
+      ? await prisma.$queryRaw`SELECT MIN(created) as minDate, MAX(created) as maxDate FROM ImageCam WHERE binId = ${binIdInt}`
+      : await prisma.$queryRaw`SELECT MIN(created) as minDate, MAX(created) as maxDate FROM ImageCam`
+
+    const dates = binIdInt
+      ? await prisma.$queryRaw`SELECT DISTINCT DATE_FORMAT(created, '%Y-%m-%d') as date FROM ImageCam WHERE binId = ${binIdInt} ORDER BY date DESC`
+      : await prisma.$queryRaw`SELECT DISTINCT DATE_FORMAT(created, '%Y-%m-%d') as date FROM ImageCam ORDER BY date DESC`
 
     const availableDates = dates.map(d => d.date)
 
@@ -40,16 +42,19 @@ export function createCameraActions({ prisma, buildUrl }) {
    * Get a single image based on timestamp and direction.
    * @param {string|null} timestamp - ISO timestamp to search from (null for latest)
    * @param {'latest'|'next'|'prev'|'closest'} direction - How to find the image
+   * @param {number|string|null} binId - Camera/bin ID to filter by (optional)
    * @returns {Promise<{success: boolean, data: object|null, hasOlder: boolean, hasNewer: boolean}>}
    */
-  async function getImageByTimestamp(timestamp, direction = 'latest') {
+  async function getImageByTimestamp(timestamp, direction = 'latest', binId = null) {
     let image = null
     const targetDate = timestamp ? new Date(timestamp) : null
+    const binFilter = binId ? { binId: parseInt(binId) } : {}
 
     switch (direction) {
       case 'latest':
         // Get the most recent image
         image = await prisma.imageCam.findFirst({
+          where: binFilter,
           orderBy: { created: 'desc' }
         })
         break
@@ -58,7 +63,7 @@ export function createCameraActions({ prisma, buildUrl }) {
         // Get the next image after the given timestamp (newer)
         if (!targetDate) return { success: false, data: null, hasOlder: false, hasNewer: false }
         image = await prisma.imageCam.findFirst({
-          where: { created: { gt: targetDate } },
+          where: { ...binFilter, created: { gt: targetDate } },
           orderBy: { created: 'asc' }
         })
         break
@@ -67,7 +72,7 @@ export function createCameraActions({ prisma, buildUrl }) {
         // Get the previous image before the given timestamp (older)
         if (!targetDate) return { success: false, data: null, hasOlder: false, hasNewer: false }
         image = await prisma.imageCam.findFirst({
-          where: { created: { lt: targetDate } },
+          where: { ...binFilter, created: { lt: targetDate } },
           orderBy: { created: 'desc' }
         })
         break
@@ -77,17 +82,18 @@ export function createCameraActions({ prisma, buildUrl }) {
         if (!targetDate) {
           // If no timestamp, return latest
           image = await prisma.imageCam.findFirst({
+            where: binFilter,
             orderBy: { created: 'desc' }
           })
         } else {
           // Find the closest image (before or after)
           const [before, after] = await Promise.all([
             prisma.imageCam.findFirst({
-              where: { created: { lte: targetDate } },
+              where: { ...binFilter, created: { lte: targetDate } },
               orderBy: { created: 'desc' }
             }),
             prisma.imageCam.findFirst({
-              where: { created: { gt: targetDate } },
+              where: { ...binFilter, created: { gt: targetDate } },
               orderBy: { created: 'asc' }
             })
           ])
@@ -111,10 +117,10 @@ export function createCameraActions({ prisma, buildUrl }) {
       return { success: true, data: null, hasOlder: false, hasNewer: false }
     }
 
-    // Check if there are older/newer images
+    // Check if there are older/newer images (for this camera)
     const [hasNewer, hasOlder] = await Promise.all([
-      prisma.imageCam.count({ where: { created: { gt: image.created } } }).then(c => c > 0),
-      prisma.imageCam.count({ where: { created: { lt: image.created } } }).then(c => c > 0)
+      prisma.imageCam.count({ where: { ...binFilter, created: { gt: image.created } } }).then(c => c > 0),
+      prisma.imageCam.count({ where: { ...binFilter, created: { lt: image.created } } }).then(c => c > 0)
     ])
 
     return {
@@ -125,17 +131,19 @@ export function createCameraActions({ prisma, buildUrl }) {
     }
   }
 
-  async function getCameraImageByFilename(filename) {
+  async function getCameraImageByFilename(filename, binId = null) {
+    const binFilter = binId ? { binId: parseInt(binId) } : {}
     const image = await prisma.imageCam.findFirst({
-      where: { file: filename },
+      where: { ...binFilter, file: filename },
     })
     if (!image) return { success: false, error: 'Image not found' }
     return { success: true, data: augmentImageWithMetadata(image) }
   }
 
   // Legacy functions kept for backwards compatibility
-  async function getCameraImagesPaginated(limit = 14, beforeId = null, afterId = null) {
-    let where = {}
+  async function getCameraImagesPaginated(limit = 14, beforeId = null, afterId = null, binId = null) {
+    const binFilter = binId ? { binId: parseInt(binId) } : {}
+    let where = { ...binFilter }
     if (beforeId !== null) where.id = { lt: beforeId }
     if (afterId !== null) where.id = { gt: afterId }
 
@@ -146,44 +154,45 @@ export function createCameraActions({ prisma, buildUrl }) {
     if (orderedImages.length) {
       const highestId = Math.max(...orderedImages.map((i) => i.id))
       const lowestId = Math.min(...orderedImages.map((i) => i.id))
-      hasNewer = (await prisma.imageCam.count({ where: { id: { gt: highestId } } })) > 0
-      hasOlder = (await prisma.imageCam.count({ where: { id: { lt: lowestId } } })) > 0
+      hasNewer = (await prisma.imageCam.count({ where: { ...binFilter, id: { gt: highestId } } })) > 0
+      hasOlder = (await prisma.imageCam.count({ where: { ...binFilter, id: { lt: lowestId } } })) > 0
     }
     const imagesWithMetadata = orderedImages.map(augmentImageWithMetadata)
     return { success: true, data: imagesWithMetadata, hasOlder, hasNewer }
   }
 
-  async function getCameraImagesByDateTime(targetDateTime, limit = 14) {
+  async function getCameraImagesByDateTime(targetDateTime, limit = 14, binId = null) {
+    const binFilter = binId ? { binId: parseInt(binId) } : {}
     const targetDate = new Date(targetDateTime)
     const closestImage = await prisma.imageCam.findFirst({
       orderBy: [{ created: 'desc' }],
-      where: { created: { lte: targetDate } },
+      where: { ...binFilter, created: { lte: targetDate } },
     })
 
     if (!closestImage) {
-      const images = await prisma.imageCam.findMany({ orderBy: { created: 'desc' }, take: limit })
+      const images = await prisma.imageCam.findMany({ where: binFilter, orderBy: { created: 'desc' }, take: limit })
       const imagesWithMetadata = images.map(augmentImageWithMetadata)
       let hasOlder = false, hasNewer = false
       if (images.length) {
         const highestId = Math.max(...images.map((i) => i.id))
         const lowestId = Math.min(...images.map((i) => i.id))
-        hasNewer = (await prisma.imageCam.count({ where: { id: { gt: highestId } } })) > 0
-        hasOlder = (await prisma.imageCam.count({ where: { id: { lt: lowestId } } })) > 0
+        hasNewer = (await prisma.imageCam.count({ where: { ...binFilter, id: { gt: highestId } } })) > 0
+        hasOlder = (await prisma.imageCam.count({ where: { ...binFilter, id: { lt: lowestId } } })) > 0
       }
       return { success: true, data: imagesWithMetadata, hasOlder, hasNewer }
     }
 
     const halfLimit = Math.floor(limit / 2)
-    const newer = await prisma.imageCam.findMany({ where: { id: { gt: closestImage.id } }, orderBy: { created: 'asc' }, take: halfLimit })
-    const older = await prisma.imageCam.findMany({ where: { id: { lt: closestImage.id } }, orderBy: { created: 'desc' }, take: halfLimit })
+    const newer = await prisma.imageCam.findMany({ where: { ...binFilter, id: { gt: closestImage.id } }, orderBy: { created: 'asc' }, take: halfLimit })
+    const older = await prisma.imageCam.findMany({ where: { ...binFilter, id: { lt: closestImage.id } }, orderBy: { created: 'desc' }, take: halfLimit })
     const allImages = [...newer.reverse(), closestImage, ...older]
 
     let hasOlder = false, hasNewer = false
     if (allImages.length) {
       const highestId = Math.max(...allImages.map((i) => i.id))
       const lowestId = Math.min(...allImages.map((i) => i.id))
-      hasNewer = (await prisma.imageCam.count({ where: { id: { gt: highestId } } })) > 0
-      hasOlder = (await prisma.imageCam.count({ where: { id: { lt: lowestId } } })) > 0
+      hasNewer = (await prisma.imageCam.count({ where: { ...binFilter, id: { gt: highestId } } })) > 0
+      hasOlder = (await prisma.imageCam.count({ where: { ...binFilter, id: { lt: lowestId } } })) > 0
     }
 
     return {
@@ -195,37 +204,38 @@ export function createCameraActions({ prisma, buildUrl }) {
     }
   }
 
-  async function getCameraImagesByDateTimeForward(targetDateTime, limit = 14) {
+  async function getCameraImagesByDateTimeForward(targetDateTime, limit = 14, binId = null) {
+    const binFilter = binId ? { binId: parseInt(binId) } : {}
     const targetDate = new Date(targetDateTime)
     const closestImage = await prisma.imageCam.findFirst({
       orderBy: [{ created: 'asc' }],
-      where: { created: { gte: targetDate } },
+      where: { ...binFilter, created: { gte: targetDate } },
     })
 
     if (!closestImage) {
-      const images = await prisma.imageCam.findMany({ orderBy: { created: 'desc' }, take: limit })
+      const images = await prisma.imageCam.findMany({ where: binFilter, orderBy: { created: 'desc' }, take: limit })
       const imagesWithMetadata = images.map(augmentImageWithMetadata)
       let hasOlder = false, hasNewer = false
       if (images.length) {
         const highestId = Math.max(...images.map((i) => i.id))
         const lowestId = Math.min(...images.map((i) => i.id))
-        hasNewer = (await prisma.imageCam.count({ where: { id: { gt: highestId } } })) > 0
-        hasOlder = (await prisma.imageCam.count({ where: { id: { lt: lowestId } } })) > 0
+        hasNewer = (await prisma.imageCam.count({ where: { ...binFilter, id: { gt: highestId } } })) > 0
+        hasOlder = (await prisma.imageCam.count({ where: { ...binFilter, id: { lt: lowestId } } })) > 0
       }
       return { success: true, data: imagesWithMetadata, hasOlder, hasNewer }
     }
 
     const halfLimit = Math.floor(limit / 2)
-    const newer = await prisma.imageCam.findMany({ where: { id: { gt: closestImage.id } }, orderBy: { created: 'asc' }, take: halfLimit })
-    const older = await prisma.imageCam.findMany({ where: { id: { lt: closestImage.id } }, orderBy: { created: 'desc' }, take: halfLimit })
+    const newer = await prisma.imageCam.findMany({ where: { ...binFilter, id: { gt: closestImage.id } }, orderBy: { created: 'asc' }, take: halfLimit })
+    const older = await prisma.imageCam.findMany({ where: { ...binFilter, id: { lt: closestImage.id } }, orderBy: { created: 'desc' }, take: halfLimit })
     const allImages = [...newer.reverse(), closestImage, ...older]
 
     let hasOlder = false, hasNewer = false
     if (allImages.length) {
       const highestId = Math.max(...allImages.map((i) => i.id))
       const lowestId = Math.min(...allImages.map((i) => i.id))
-      hasNewer = (await prisma.imageCam.count({ where: { id: { gt: highestId } } })) > 0
-      hasOlder = (await prisma.imageCam.count({ where: { id: { lt: lowestId } } })) > 0
+      hasNewer = (await prisma.imageCam.count({ where: { ...binFilter, id: { gt: highestId } } })) > 0
+      hasOlder = (await prisma.imageCam.count({ where: { ...binFilter, id: { lt: lowestId } } })) > 0
     }
 
     return {
