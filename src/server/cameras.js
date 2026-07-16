@@ -5,6 +5,12 @@ export function createCameraActions({ prisma, buildUrl }) {
   if (!prisma) throw new Error('createCameraActions: prisma is required')
   if (!buildUrl) throw new Error('createCameraActions: buildUrl(fileRecord) -> url is required')
 
+  // An image cannot be captured in the future. A row whose `created` is ahead of
+  // now (camera clock skew, or a date mis-parsed at ingest) would otherwise pin
+  // itself as "latest" and hide the real most-recent image until wall-clock time
+  // caught up with it. Every lookup below is bounded to the past.
+  const now = () => new Date()
+
   const augmentImageWithMetadata = (image) => {
     const url = buildUrl(image)
     const data = image.data || {}
@@ -21,12 +27,12 @@ export function createCameraActions({ prisma, buildUrl }) {
     const binIdInt = binId ? parseInt(binId) : null
 
     const [minMax] = binIdInt
-      ? await prisma.$queryRaw`SELECT MIN(created) as minDate, MAX(created) as maxDate FROM ImageCam WHERE binId = ${binIdInt}`
-      : await prisma.$queryRaw`SELECT MIN(created) as minDate, MAX(created) as maxDate FROM ImageCam`
+      ? await prisma.$queryRaw`SELECT MIN(created) as minDate, MAX(created) as maxDate FROM ImageCam WHERE binId = ${binIdInt} AND created <= NOW()`
+      : await prisma.$queryRaw`SELECT MIN(created) as minDate, MAX(created) as maxDate FROM ImageCam WHERE created <= NOW()`
 
     const dates = binIdInt
-      ? await prisma.$queryRaw`SELECT DISTINCT DATE_FORMAT(created, '%Y-%m-%d') as date FROM ImageCam WHERE binId = ${binIdInt} ORDER BY date DESC`
-      : await prisma.$queryRaw`SELECT DISTINCT DATE_FORMAT(created, '%Y-%m-%d') as date FROM ImageCam ORDER BY date DESC`
+      ? await prisma.$queryRaw`SELECT DISTINCT DATE_FORMAT(created, '%Y-%m-%d') as date FROM ImageCam WHERE binId = ${binIdInt} AND created <= NOW() ORDER BY date DESC`
+      : await prisma.$queryRaw`SELECT DISTINCT DATE_FORMAT(created, '%Y-%m-%d') as date FROM ImageCam WHERE created <= NOW() ORDER BY date DESC`
 
     const availableDates = dates.map(d => d.date)
 
@@ -52,9 +58,9 @@ export function createCameraActions({ prisma, buildUrl }) {
 
     switch (direction) {
       case 'latest':
-        // Get the most recent image
+        // Get the most recent image that is not dated in the future
         image = await prisma.imageCam.findFirst({
-          where: binFilter,
+          where: { ...binFilter, created: { lte: now() } },
           orderBy: { created: 'desc' }
         })
         break
@@ -63,7 +69,7 @@ export function createCameraActions({ prisma, buildUrl }) {
         // Get the next image after the given timestamp (newer)
         if (!targetDate) return { success: false, data: null, hasOlder: false, hasNewer: false }
         image = await prisma.imageCam.findFirst({
-          where: { ...binFilter, created: { gt: targetDate } },
+          where: { ...binFilter, created: { gt: targetDate, lte: now() } },
           orderBy: { created: 'asc' }
         })
         break
@@ -82,18 +88,21 @@ export function createCameraActions({ prisma, buildUrl }) {
         if (!targetDate) {
           // If no timestamp, return latest
           image = await prisma.imageCam.findFirst({
-            where: binFilter,
+            where: { ...binFilter, created: { lte: now() } },
             orderBy: { created: 'desc' }
           })
         } else {
+          // Never search past the present, even if the caller asks for a future
+          // date (e.g. a calendar day that has not finished yet).
+          const cap = new Date(Math.min(targetDate.getTime(), Date.now()))
           // Find the closest image (before or after)
           const [before, after] = await Promise.all([
             prisma.imageCam.findFirst({
-              where: { ...binFilter, created: { lte: targetDate } },
+              where: { ...binFilter, created: { lte: cap } },
               orderBy: { created: 'desc' }
             }),
             prisma.imageCam.findFirst({
-              where: { ...binFilter, created: { gt: targetDate } },
+              where: { ...binFilter, created: { gt: targetDate, lte: now() } },
               orderBy: { created: 'asc' }
             })
           ])
@@ -117,9 +126,11 @@ export function createCameraActions({ prisma, buildUrl }) {
       return { success: true, data: null, hasOlder: false, hasNewer: false }
     }
 
-    // Check if there are older/newer images (for this camera)
+    // Check if there are older/newer images (for this camera). `hasNewer` must
+    // apply the same future bound as the 'next' lookup, or the forward control
+    // enables itself against images that 'next' will refuse to return.
     const [hasNewer, hasOlder] = await Promise.all([
-      prisma.imageCam.count({ where: { ...binFilter, created: { gt: image.created } } }).then(c => c > 0),
+      prisma.imageCam.count({ where: { ...binFilter, created: { gt: image.created, lte: now() } } }).then(c => c > 0),
       prisma.imageCam.count({ where: { ...binFilter, created: { lt: image.created } } }).then(c => c > 0)
     ])
 
